@@ -38,7 +38,8 @@ module RecordArchiver
     # @param limit [Integer, nil] stop after this many rows
     # @param dry_run [Boolean] report what would move without moving it
     # @param track [Boolean] write a record_archiver_runs row
-    # @param cascade [Boolean] also archive the policy's cascade associations
+    # @param cascade [Boolean, Symbol, Array, Hash] true to follow the policy's
+    #   cascade, false for none, or an explicit association tree
     # @param delete_after_archive [Boolean, nil] override the policy's setting
     def initialize(model, relation: nil, force: false, limit: nil,
                    dry_run: RecordArchiver.config.dry_run, batch_size: nil, track: true,
@@ -195,22 +196,33 @@ module RecordArchiver
       ids.size
     end
 
+    # The associations to take along: the policy's cascade by default, or the
+    # explicit tree the caller passed.
+    def cascade_tree
+      return {} if @cascade == false || @cascade.nil?
+      return policy&.cascade || {} if @cascade == true
+
+      AssociationTree.normalize(@cascade)
+    end
+
     # Children are archived (and deleted) before their parents, so foreign keys
     # in the primary database stay satisfied at every step.
+    #
+    # A parent that keeps its rows keeps its children's too: `delete_after_archive`
+    # travels down the tree.
     def archive_children(parent_ids)
-      return if !@cascade || policy.nil? || policy.cascade.empty?
-
-      policy.cascade.each do |association|
-        reflection = policy.cascade_reflection!(model, association)
-        child_scope = child_relation(reflection, parent_ids)
+      cascade_tree.each do |association, nested|
+        reflection = Policy.cascade_reflection!(model, association)
 
         self.class.new(
           reflection.klass,
-          relation: child_scope,
+          relation: child_relation(reflection, parent_ids),
           force: true,
           dry_run: @dry_run,
           batch_size: batch_size,
-          track: false
+          track: false,
+          cascade: nested.nil? ? true : nested,
+          delete_after_archive: @delete_after_archive
         ).call
       end
     end

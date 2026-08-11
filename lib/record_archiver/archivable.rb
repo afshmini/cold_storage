@@ -113,6 +113,11 @@ module RecordArchiver
     # Keeps a copy of a hard-deleted row. The row is still readable here, so it
     # is read (and archived) exactly like the scheduled run would.
     #
+    # The policy's cascade comes along, because `dependent: :destroy` children
+    # are about to go too. Nothing is deleted here: the destroy that triggered
+    # this is what removes the rows, so `dependent:` keeps deciding what
+    # happens to the children.
+    #
     # Raises by default: losing the row is worse than failing the delete. Set
     # `config.on_destroy_error = :log` to let deletes through instead.
     def archive_before_destroy
@@ -124,7 +129,7 @@ module RecordArchiver
         relation: self.class.unscoped.where(self.class.primary_key => id),
         force: true,
         track: false,
-        cascade: false,
+        cascade: true,
         delete_after_archive: false
       ).call
     rescue StandardError => e

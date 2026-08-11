@@ -6,8 +6,11 @@
   `on_destroy:`, `every:`, `scope:`, `cascade:`, `batch_size:`,
   `delete_after_archive:`, `delete_method:`.
 * `on_destroy: true` keeps hard-deleted rows by copying them to the archive in
-  a `before_destroy` hook, with `config.on_destroy_error` deciding whether an
+  a `before_destroy` hook, together with the policy's cascade and without
+  deleting anything itself; `config.on_destroy_error` decides whether an
   unreachable archive blocks the delete.
+* `cascade:` accepts a nested tree (`cascade: { lines: [:taxes] }`) so a whole
+  object graph can be taken along, validated before anything moves.
 * Separate archive database, connected lazily through `RecordArchiver::ArchiveRecord`.
 * Schema mirroring for the archivable models only, including PostgreSQL enum
   types, arrays and indexes; automatic sync after `db:migrate`, and a

@@ -79,16 +79,24 @@ module RecordArchiver
 
     # ------------------------------------------------------------------ tables
 
-    def collect_tables(model, map)
-      return if map.key?(model.table_name)
+    def collect_tables(model, map, cascade = nil, seen = [])
+      return if seen.include?(model.table_name)
 
-      map[model.table_name] = model
-      return unless model.respond_to?(:archiving_policy) && model.archiving_policy
+      seen += [model.table_name]
+      map[model.table_name] ||= model
 
-      model.archiving_policy.cascade.each do |association|
-        reflection = model.archiving_policy.cascade_reflection!(model, association)
-        collect_tables(reflection.klass, map)
+      tree = cascade || policy_cascade(model)
+      tree.each do |association, nested|
+        reflection = Policy.cascade_reflection!(model, association)
+        child_tree = nested.nil? ? policy_cascade(reflection.klass) : AssociationTree.normalize(nested)
+        collect_tables(reflection.klass, map, child_tree, seen)
       end
+    end
+
+    def policy_cascade(model)
+      return {} unless model.respond_to?(:archiving_policy) && model.archiving_policy
+
+      model.archiving_policy.cascade
     end
 
     def mirror_table(model, table, target, apply)

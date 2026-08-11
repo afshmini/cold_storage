@@ -13,7 +13,7 @@ end
 class Invoice < Support::Record
   self.table_name = 'invoices'
 
-  has_many :invoice_lines, dependent: nil
+  has_many :invoice_lines, dependent: :destroy
   has_many :taxes, through: :invoice_lines
 
   default_scope { where(deleted_at: nil) }
@@ -25,7 +25,7 @@ class InvoiceLine < Support::Record
   self.table_name = 'invoice_lines'
 
   belongs_to :invoice
-  has_many :taxes, dependent: nil
+  has_many :taxes, dependent: :destroy
 end
 
 class Tax < Support::Record

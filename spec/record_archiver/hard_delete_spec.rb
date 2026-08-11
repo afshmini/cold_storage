@@ -83,6 +83,41 @@ RSpec.describe 'archivable on_destroy' do
     end
   end
 
+  describe 'a destroy that takes children with it' do
+    around do |example|
+      Invoice.archivable after: 12.months, cascade: [:invoice_lines], on_destroy: true
+      example.run
+    ensure
+      Invoice.archivable after: 12.months, every: 1.month, cascade: [:invoice_lines]
+    end
+
+    let!(:invoice) { Invoice.create!(number: 'live') }
+    let(:archived_lines) { RecordArchiver::ArchiveModel.for(InvoiceLine) }
+
+    before { invoice.invoice_lines.create!(description: 'work', amount: 10) }
+
+    it 'keeps the dependent: :destroy children too' do
+      invoice.destroy!
+
+      expect(Invoice.unscoped.count).to eq(0)
+      expect(InvoiceLine.count).to eq(0)
+      expect(Invoice.archived.pluck(:number)).to eq(['live'])
+      expect(archived_lines.pluck(:description)).to eq(['work'])
+    end
+
+    it 'deletes nothing itself: the destroy is what removes the rows' do
+      # dependent: :destroy is what takes the lines; if RecordArchiver deleted
+      # them, a rolled back destroy would lose them.
+      Invoice.transaction do
+        invoice.destroy!
+        raise ActiveRecord::Rollback
+      end
+
+      expect(Invoice.unscoped.count).to eq(1)
+      expect(InvoiceLine.count).to eq(1)
+    end
+  end
+
   describe 'combined with a retention rule' do
     around do |example|
       Note.archivable deleted: true, on_destroy: true

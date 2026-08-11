@@ -89,7 +89,7 @@ Or from cron/rake: `rails record_archiver:archive_all`.
 | `on_destroy:` (alias `hard_delete:`) | copy a row to the archive whenever it is really destroyed | `false` |
 | `every:` | minimum time between two runs of this model | run on every pass |
 | `scope:` | symbol, proc or relation narrowing the selection | — |
-| `cascade:` | `has_many` / `has_one` names archived with the parent | `[]` |
+| `cascade:` | `has_many` / `has_one` names archived with the parent, nestable | `[]` |
 | `batch_size:` | rows per round trip | `config.batch_size` (1000) |
 | `delete_after_archive:` | remove the source rows once copied | `true` |
 | `delete_method:` | `:delete_all` or `:destroy_all` | `:delete_all` |
@@ -108,7 +108,15 @@ archivable after: 5.years, on_destroy: true                # both
 archivable after: 5.years, every: 1.month                  # ... at most monthly
 archivable after: 1.year, scope: -> { where(exported: true) }
 archivable after: 2.years, cascade: [:items], batch_size: 5_000
+archivable after: 2.years, cascade: [{ items: [:taxes, :notes] }, :comments]
 ```
+
+`cascade:` takes a name, an array, or a nested hash, as deep as the graph goes.
+Children are archived and deleted before their parents, so foreign keys hold at
+every step, and anything the cascade does not name is left behind — which for a
+child with a `NOT NULL` foreign key means the parent's delete fails, loudly.
+Association scopes are ignored on the way down: every row pointing at the
+parent is taken, never a subset, so nothing is orphaned.
 
 The selection always starts from `unscoped`, so a soft-delete `default_scope`
 cannot hide the very rows you asked to archive.
@@ -144,9 +152,10 @@ Worth knowing:
 * `delete`, `delete_all` and database-level `ON DELETE CASCADE` do not run
   callbacks, so they cannot be captured. Use `destroy`/`destroy_all`, or
   `dependent: :destroy` on the parent, for rows you must keep.
-* Children are **not** pulled in by the parent's `cascade:` on destroy — give
-  each child model its own `on_destroy: true`, which is what `dependent:
-  :destroy` will then trigger row by row.
+* The parent's `cascade:` comes along, because `dependent: :destroy` children
+  are about to go too. Nothing is deleted by the hook itself: the destroy that
+  triggered it is what removes the rows, so `dependent:` keeps deciding what
+  happens to the children (and a rolled-back destroy loses nothing).
 * If the archive database cannot be reached, the destroy fails
   (`config.on_destroy_error = :raise`, the default): losing the row is worse
   than failing the delete. Set it to `:log` to let deletes through and only

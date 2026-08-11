@@ -160,15 +160,11 @@ module RecordArchiver
 
     # `with:` accepts a symbol, an array, a nested hash, or :all.
     def expand(value)
-      case value
-      when nil, false      then {}
-      when true, :all      then every_child_association
-      when Symbol, String  then { value.to_sym => nil }
-      when Array           then value.inject({}) { |acc, item| acc.merge(expand(item)) }
-      when Hash            then value.to_h { |name, nested| [name.to_sym, nested] }
-      else
-        raise ArgumentError, "with: expects a symbol, array, hash or :all, got #{value.inspect}"
-      end
+      return every_child_association if value == true || value == :all
+
+      AssociationTree.normalize(value)
+    rescue ArgumentError
+      raise ArgumentError, "with: expects a symbol, array, hash or :all, got #{value.inspect}"
     end
 
     # Every child association that actually has something to restore. Cycles

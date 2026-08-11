@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe RecordArchiver::Archiver do
-  before(:all) { RecordArchiver.sync_schema!(models: [Invoice, Note]) }
+  before(:all) { RecordArchiver.sync_schema!(models: [Invoice, Note, Tax]) }
 
   def create_invoice(number:, created_at: 2.years.ago, **attributes)
     Invoice.create!(number: number, created_at: created_at, updated_at: created_at, **attributes)
@@ -115,18 +115,52 @@ RSpec.describe RecordArchiver::Archiver do
 
   describe 'cascade' do
     let!(:invoice) { create_invoice(number: 'with-lines') }
+    let(:archived_lines) { RecordArchiver::ArchiveModel.for(InvoiceLine) }
+    let(:archived_taxes) { RecordArchiver::ArchiveModel.for(Tax) }
 
     before do
-      invoice.invoice_lines.create!(description: 'work', amount: 10)
+      line = invoice.invoice_lines.create!(description: 'work', amount: 10)
       invoice.invoice_lines.create!(description: 'travel', amount: 20)
+      Tax.create!(invoice_line_id: line.id, rate: 19)
     end
 
     it 'archives the children before the parent, so foreign keys hold' do
       expect { Invoice.archive_now! }.not_to raise_error
 
       expect(InvoiceLine.count).to eq(0)
-      expect(RecordArchiver::ArchiveModel.for(InvoiceLine).pluck(:description))
-        .to contain_exactly('work', 'travel')
+      expect(archived_lines.pluck(:description)).to contain_exactly('work', 'travel')
+    end
+
+    it 'leaves grandchildren alone unless the cascade names them' do
+      Invoice.archive_now!
+
+      expect(Tax.count).to eq(1)
+      expect(archived_taxes.count).to eq(0)
+    end
+
+    it 'follows a nested cascade all the way down' do
+      Invoice.archiving_policy = RecordArchiver::Policy.new(
+        Invoice, after: 12.months, cascade: { invoice_lines: [:taxes] }
+      )
+
+      Invoice.archive_now!
+
+      expect(Tax.count).to eq(0)
+      expect(archived_taxes.pluck(:rate)).to eq([19])
+    ensure
+      Invoice.archivable after: 12.months, every: 1.month, cascade: [:invoice_lines]
+    end
+
+    it 'reports a cascade association that does not exist, before moving anything' do
+      Invoice.archiving_policy = RecordArchiver::Policy.new(
+        Invoice, after: 12.months, cascade: { invoice_lines: [:nope] }
+      )
+
+      expect { Invoice.archive_now! }
+        .to raise_error(RecordArchiver::InvalidPolicyError, /no association :nope/)
+      expect(Invoice.unscoped.count).to eq(1)
+    ensure
+      Invoice.archivable after: 12.months, every: 1.month, cascade: [:invoice_lines]
     end
   end
 

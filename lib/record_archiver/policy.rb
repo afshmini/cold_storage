@@ -9,6 +9,7 @@ module RecordArchiver
   #   archivable deleted: true, after: 90.days     # soft-deleted 90+ days ago
   #   archivable after: 1.year, every: 1.month     # ... and only run monthly
   #   archivable after: 2.years, cascade: [:items] # take the children along
+  #   archivable after: 2.years, cascade: { items: [:taxes] } # ... and theirs
   #   archivable on_destroy: true                  # catch hard deletes
   class Policy
     OPTIONS = %i[
@@ -38,7 +39,7 @@ module RecordArchiver
       @batch_size           = options[:batch_size]
       @delete_after_archive = options[:delete_after_archive]
       @delete_method        = options[:delete_method]
-      @cascade              = Array(options[:cascade]).map(&:to_sym)
+      @cascade              = AssociationTree.normalize(options[:cascade])
       @on_destroy           = options.fetch(:on_destroy) { options.fetch(:hard_delete, false) }
 
       validate!
@@ -116,12 +117,16 @@ module RecordArchiver
               "#{klass} must have a single-column primary key to be archivable (got #{klass.primary_key.inspect})"
       end
 
-      cascade.each { |name| cascade_reflection!(klass, name) }
+      validate_cascade!(klass, cascade)
       true
     end
 
-    # @return [ActiveRecord::Reflection::AssociationReflection]
     def cascade_reflection!(klass, name)
+      self.class.cascade_reflection!(klass, name)
+    end
+
+    # @return [ActiveRecord::Reflection::AssociationReflection]
+    def self.cascade_reflection!(klass, name)
       reflection = klass.reflect_on_association(name)
       raise InvalidPolicyError, "#{klass} has no association #{name.inspect} to cascade to" if reflection.nil?
 
@@ -145,7 +150,7 @@ module RecordArchiver
       parts << "scope: #{scope.is_a?(Symbol) ? scope : 'custom'}" if scope
       parts << 'on destroy' if on_destroy?
       parts << "every #{humanize_duration(every)}" if every && sweeps?
-      parts << "cascade: #{cascade.join(', ')}" if cascade.any?
+      parts << "cascade: #{cascade.keys.join(', ')}" if cascade.any?
       parts << 'keeps source rows' unless delete_after_archive?
       parts.join(', ')
     end
@@ -171,6 +176,15 @@ module RecordArchiver
       raise InvalidPolicyError,
             "#{model_name}: archivable needs at least one of after:, deleted:, scope: or on_destroy:. " \
             'Without a criterion every row of the table would be archived.'
+    end
+
+    # Walks the whole cascade tree, so a typo deep in it is reported before
+    # anything moves.
+    def validate_cascade!(klass, tree)
+      tree.each do |name, nested|
+        reflection = self.class.cascade_reflection!(klass, name)
+        validate_cascade!(reflection.klass, AssociationTree.normalize(nested))
+      end
     end
 
     def check_column!(klass, column, columns)
