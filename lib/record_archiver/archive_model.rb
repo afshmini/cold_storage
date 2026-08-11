@@ -123,9 +123,33 @@ module RecordArchiver
         return if target.abstract_class? || target.table_name.blank?
 
         register(target)
-        klass.public_send(reflection.macro, reflection.name, reflection.scope, **options_for(reflection, target))
+        klass.public_send(reflection.macro, reflection.name, portable_scope(reflection),
+                          **options_for(reflection, target))
       rescue StandardError => e
         log_skipped(klass, reflection, e)
+      end
+
+      # An association scope is written against the source model, and may call
+      # scopes or class methods only that model has:
+      #
+      #   has_many :time_periods, -> { sorted('start_time', 'asc') }
+      #
+      # Plain conditions carry over to the archive; anything the archive class
+      # cannot evaluate falls back to the unfiltered relation rather than
+      # blowing up a read.
+      def portable_scope(reflection)
+        scope = reflection.scope
+        return nil if scope.nil?
+
+        lambda do |*args|
+          instance_exec(*args, &scope)
+        rescue StandardError => e
+          RecordArchiver.logger.debug do
+            "#{Logging::PREFIX} ignoring the scope of #{reflection.name} on the archive model: " \
+              "#{e.class}: #{e.message}"
+          end
+          self
+        end
       end
 
       def log_skipped(klass, reflection, error)

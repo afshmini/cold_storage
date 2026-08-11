@@ -206,6 +206,12 @@ line.invoice                           # ... and back up
 line.source_model                      # => InvoiceLine
 ```
 
+Association scopes carry over when the archive class can evaluate them
+(`-> { where(active: true) }`). One that reaches for something only the source
+model has (`-> { sorted('start_time', 'asc') }`, a scope on the child) falls
+back to the unfiltered relation instead of raising, so a read never dies on a
+scope. Turn on debug logging to see which ones were ignored.
+
 Mirrored: `has_many`, `has_one`, `belongs_to` and `:through`. Not mirrored:
 polymorphic `belongs_to`, and `:through` with a `source_type:` — both would
 have to resolve a class name back into the primary database, and reading would

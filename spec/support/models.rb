@@ -15,6 +15,11 @@ class Invoice < Support::Record
 
   has_many :invoice_lines, dependent: :destroy
   has_many :taxes, through: :invoice_lines
+  # A scope that only the source model can evaluate.
+  has_many :sorted_lines, -> { by_amount }, class_name: 'InvoiceLine', inverse_of: :invoice, dependent: nil
+  # A scope that carries over to the archive as is.
+  has_many :work_lines, -> { where(description: 'work') }, class_name: 'InvoiceLine',
+                        inverse_of: :invoice, dependent: nil
 
   default_scope { where(deleted_at: nil) }
 
@@ -26,6 +31,8 @@ class InvoiceLine < Support::Record
 
   belongs_to :invoice
   has_many :taxes, dependent: :destroy
+
+  scope :by_amount, -> { order(amount: :desc) }
 end
 
 class Tax < Support::Record

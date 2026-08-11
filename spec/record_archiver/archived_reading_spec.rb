@@ -59,6 +59,21 @@ RSpec.describe 'reading archived data' do
       expect(archived.taxes.first).to be_a(RecordArchiver::ArchiveRecord)
     end
 
+    it 'keeps an association scope the archive class can evaluate' do
+      archived = Invoice.archived.find(invoice.id)
+
+      expect(archived.work_lines.pluck(:description)).to eq(['work'])
+    end
+
+    it 'falls back to the unfiltered relation when the scope needs the source model' do
+      archived = Invoice.archived.find(invoice.id)
+
+      # -> { by_amount } is a scope on InvoiceLine, which the archive class
+      # does not have; reading must not blow up.
+      expect { archived.sorted_lines.to_a }.not_to raise_error
+      expect(archived.sorted_lines.pluck(:id)).to eq([line.id])
+    end
+
     it 'eager loads like any other association' do
       archived = Invoice.archived.includes(:invoice_lines).find(invoice.id)
 

@@ -9,6 +9,8 @@
   a `before_destroy` hook, together with the policy's cascade and without
   deleting anything itself; `config.on_destroy_error` decides whether an
   unreachable archive blocks the delete.
+* Association scopes that the archive class cannot evaluate degrade to the
+  unfiltered relation instead of raising on read.
 * Unique indexes are mirrored as plain indexes; the primary key is the only
   uniqueness the archive enforces.
 * `config.enabled` master switch, so an app can stand the gem down per
