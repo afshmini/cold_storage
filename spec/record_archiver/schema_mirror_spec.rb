@@ -74,6 +74,15 @@ RSpec.describe RecordArchiver::SchemaMirror do
       expect(names).to include('index_invoices_on_number', 'index_invoices_on_deleted_at')
     end
 
+    it 'mirrors a unique index as a plain one, so history can repeat itself' do
+      index = archive_connection { |c| c.indexes('invoices').find { |i| i.name == 'index_invoices_on_number' } }
+
+      expect(index.unique).to be(false)
+      expect(ActiveRecord::Base.connection_pool.with_connection do |c|
+        c.indexes('invoices').find { |i| i.name == 'index_invoices_on_number' }.unique
+      end).to be(true)
+    end
+
     it 'does not copy foreign keys' do
       expect(archive_connection { |c| c.foreign_keys('invoice_lines') }).to be_empty
     end

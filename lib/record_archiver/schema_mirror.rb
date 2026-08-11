@@ -202,17 +202,24 @@ module RecordArchiver
       source_indexes.each do |index|
         next if existing.include?(index.name)
 
-        record(:add_index, table, index.name, Array(index.columns).join(', '))
+        detail = Array(index.columns).join(', ')
+        detail += ' (unique dropped)' if index.unique
+        record(:add_index, table, index.name, detail)
         next unless apply
 
         add_index(target, table, index)
       end
     end
 
+    # Unique indexes are mirrored as plain ones. An archive accumulates history:
+    # a natural key that is unique in the primary database at any one moment
+    # (say working_date + colleague_id) is not unique across everything that
+    # table ever held. The primary key is the only uniqueness the archive
+    # enforces, and it is what keeps re-archiving a row idempotent.
     def add_index(target, table, index)
       options = {
         name: index.name,
-        unique: index.unique,
+        unique: false,
         where: index.where,
         using: index.using,
         order: index.orders.presence,

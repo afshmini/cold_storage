@@ -272,7 +272,9 @@ cascade into) and, in the archive database:
   including PostgreSQL enum types, arrays and `jsonb`;
 * keeps the primary key, so re-archiving a row updates it instead of
   duplicating it;
-* mirrors indexes;
+* mirrors indexes, **dropping their uniqueness** — an archive accumulates
+  history, and a natural key that is unique in the primary database at any one
+  moment is not unique across everything that table ever held;
 * adds an `archived_at` column (configurable, `nil` disables it);
 * adds columns that later migrations introduced;
 * records the migration version it synced against.

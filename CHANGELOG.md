@@ -9,6 +9,8 @@
   a `before_destroy` hook, together with the policy's cascade and without
   deleting anything itself; `config.on_destroy_error` decides whether an
   unreachable archive blocks the delete.
+* Unique indexes are mirrored as plain indexes; the primary key is the only
+  uniqueness the archive enforces.
 * `config.enabled` master switch, so an app can stand the gem down per
   environment (the test one, typically).
 * `cascade:` accepts a nested tree (`cascade: { lines: [:taxes] }`) so a whole
