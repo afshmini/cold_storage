@@ -29,7 +29,9 @@ end
 
 ```ruby
 # Gemfile
-gem 'record_archiver', path: 'vendor/gems/record_archiver'
+gem 'record_archiver', git: 'git@github.com:afshmini/rails-archiver.git'
+# or, while working on it:
+gem 'record_archiver', path: '../rails-archiver'
 ```
 
 ```bash
@@ -356,9 +358,18 @@ The suite runs against two real PostgreSQL databases, because enums, arrays and
 `jsonb` are exactly what a schema mirror gets wrong.
 
 ```bash
-# inside the app container
-cd vendor/gems/record_archiver && BUNDLE_GEMFILE=/var/www/app/Gemfile bundle exec rspec
+bundle install
+bundle exec rspec
 ```
 
 It reads `DB_HOST`, `DB_PORT`, `POSTGRES_USER` and `POSTGRES_PASSWORD`, and
 creates `record_archiver_source_test` / `record_archiver_archive_test`.
+
+To run it against the PostgreSQL of an app that already has a container, copy
+the gem in and borrow that app's bundle:
+
+```bash
+docker cp . <app-container>:/tmp/ra
+docker exec -w /tmp/ra <app-container> \
+  bash -lc 'BUNDLE_GEMFILE=/path/to/app/Gemfile bundle exec rspec'
+```
