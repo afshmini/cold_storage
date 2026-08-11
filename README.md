@@ -329,6 +329,7 @@ big table cannot starve the others.
 
 ```ruby
 RecordArchiver.configure do |config|
+  config.enabled                   = !Rails.env.test?
   config.archive_database          = :archive
   config.batch_size                = 1_000
   config.timestamp_column          = :created_at
@@ -349,6 +350,12 @@ RecordArchiver.configure do |config|
   config.dry_run                   = false
 end
 ```
+
+`config.enabled = false` stands everything down: scheduled runs report
+themselves as skipped and the `on_destroy` hook does nothing. That is usually
+what you want in the test environment, where there is no archive database and
+specs destroy records all the time. Schema tasks keep working either way, so
+`record_archiver:schema:check` still guards CI.
 
 ## Requirements and limits
 

@@ -121,6 +121,7 @@ module RecordArchiver
     # Raises by default: losing the row is worse than failing the delete. Set
     # `config.on_destroy_error = :log` to let deletes through instead.
     def archive_before_destroy
+      return unless RecordArchiver.config.enabled
       return unless self.class.archiving_policy&.on_destroy?
       return if new_record? || id.nil?
 

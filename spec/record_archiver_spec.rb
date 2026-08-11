@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe RecordArchiver do
-  before(:all) { described_class.sync_schema!(models: [Invoice, Note]) }
+  before(:all) { described_class.sync_schema!(models: [Invoice, Note, Receipt]) }
 
   describe '.models' do
     it 'lists the models that declared archivable' do
@@ -44,6 +44,27 @@ RSpec.describe RecordArchiver do
       report = described_class.report
 
       expect(report).to include('Invoice', 'Note', 'Pending', 'created_at <', 'never')
+    end
+  end
+
+  describe 'the master switch' do
+    # after the suite's own reset_config!, which runs before every example
+    before { described_class.config.enabled = false }
+
+    it 'skips scheduled runs' do
+      Invoice.create!(number: 'old', created_at: 2.years.ago, updated_at: 2.years.ago)
+
+      result = Invoice.archive_now!
+
+      expect(result).to be_skipped
+      expect(result.reason).to eq(:disabled)
+      expect(Invoice.unscoped.count).to eq(1)
+    end
+
+    it 'stands the destroy hook down' do
+      Receipt.create!(reference: 'R-1').destroy!
+
+      expect(RecordArchiver::ArchiveModel.for(Receipt).count).to eq(0)
     end
   end
 

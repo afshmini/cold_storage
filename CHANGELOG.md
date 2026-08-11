@@ -9,6 +9,8 @@
   a `before_destroy` hook, together with the policy's cascade and without
   deleting anything itself; `config.on_destroy_error` decides whether an
   unreachable archive blocks the delete.
+* `config.enabled` master switch, so an app can stand the gem down per
+  environment (the test one, typically).
 * `cascade:` accepts a nested tree (`cascade: { lines: [:taxes] }`) so a whole
   object graph can be taken along, validated before anything moves.
 * Separate archive database, connected lazily through `RecordArchiver::ArchiveRecord`.

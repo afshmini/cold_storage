@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 RecordArchiver.configure do |config|
+  # Master switch. The test environment has no archive database, and specs
+  # destroy records all the time.
+  config.enabled = !Rails.env.test?
+
   # database.yml entry holding the archive database.
   config.archive_database = :archive
 

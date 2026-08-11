@@ -63,6 +63,7 @@ module RecordArchiver
 
     # @return [Result]
     def call
+      return skipped(:disabled) unless RecordArchiver.config.enabled
       return skipped(:destroy_only) if sweep_less?
       return skipped(:not_due) unless due?
 

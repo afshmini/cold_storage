@@ -6,6 +6,11 @@ module RecordArchiver
   class Configuration
     TYPE_MISMATCH_STRATEGIES = %i[warn raise change ignore].freeze
 
+    # Master switch. When false, nothing is copied or deleted: scheduled runs
+    # report themselves as skipped and the on_destroy hook stands down. Handy
+    # for the test environment, which has no archive database.
+    # Schema tasks keep working, so `schema:check` can still run in CI.
+    attr_accessor :enabled
     # Name of the database.yml entry holding the archive database.
     attr_accessor :archive_database
     # Rows copied (and deleted) per round trip.
@@ -49,6 +54,7 @@ module RecordArchiver
     attr_accessor :logger
 
     def initialize
+      @enabled                   = true
       @archive_database          = :archive
       @batch_size                = 1_000
       @timestamp_column          = :created_at
