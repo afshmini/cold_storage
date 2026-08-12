@@ -29,9 +29,9 @@ end
 
 ```ruby
 # Gemfile
-gem 'cold_storage', git: 'git@github.com:afshmini/rails-archiver.git'
+gem 'cold_storage', git: 'git@github.com:afshmini/cold_storage.git'
 # or, while working on it:
-gem 'cold_storage', path: '../rails-archiver'
+gem 'cold_storage', path: '../cold_storage'
 ```
 
 ```bash
