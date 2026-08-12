@@ -5,7 +5,9 @@ require_relative 'lib/cold_storage/version'
 Gem::Specification.new do |spec|
   spec.name        = 'cold_storage'
   spec.version     = ColdStorage::VERSION
-  spec.authors     = ['Taxmaro']
+  spec.authors     = ['Afshin Amini']
+  spec.email       = ['afshmini@gmail.com']
+  spec.homepage    = 'https://github.com/afshmini/cold_storage'
   spec.summary     = 'Declarative auto-archiving of ActiveRecord rows into a mirrored archive database.'
   spec.description = <<~DESC
     Add `archivable` to any model to move old or soft-deleted rows into a separate
@@ -21,12 +23,16 @@ Gem::Specification.new do |spec|
     'lib/**/*.rake',
     'lib/**/*.tt',
     'README.md',
-    'CHANGELOG.md'
+    'CHANGELOG.md',
+    'LICENSE.txt'
   ]
   spec.require_paths = ['lib']
 
   spec.add_dependency 'activerecord', '>= 7.1'
   spec.add_dependency 'activesupport', '>= 7.1'
 
+  spec.metadata['source_code_uri']       = spec.homepage
+  spec.metadata['changelog_uri']         = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata['bug_tracker_uri']       = "#{spec.homepage}/issues"
   spec.metadata['rubygems_mfa_required'] = 'true'
 end
