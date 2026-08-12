@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-ActiveRecord::Base.extend(RecordArchiver::Model)
+ActiveRecord::Base.extend(ColdStorage::Model)
 
 module Support
   # Base class of the spec models.

@@ -75,7 +75,7 @@ module Support
         )
       end
       archive do |connection|
-        (connection.tables - ['record_archiver_metadata']).each do |table|
+        (connection.tables - ['cold_storage_metadata']).each do |table|
           connection.execute("TRUNCATE #{connection.quote_table_name(table)} RESTART IDENTITY CASCADE")
         end
       end
@@ -86,7 +86,7 @@ module Support
     end
 
     def archive(&block)
-      RecordArchiver::ArchiveRecord.with_archive_connection(&block)
+      ColdStorage::ArchiveRecord.with_archive_connection(&block)
     end
   end
 end

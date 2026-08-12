@@ -1,4 +1,4 @@
-# RecordArchiver
+# Cold Storage
 
 Declarative auto-archiving for ActiveRecord.
 
@@ -29,13 +29,13 @@ end
 
 ```ruby
 # Gemfile
-gem 'record_archiver', git: 'git@github.com:afshmini/rails-archiver.git'
+gem 'cold_storage', git: 'git@github.com:afshmini/rails-archiver.git'
 # or, while working on it:
-gem 'record_archiver', path: '../rails-archiver'
+gem 'cold_storage', path: '../rails-archiver'
 ```
 
 ```bash
-rails generate record_archiver:install
+rails generate cold_storage:install
 ```
 
 ### 1. Add the archive database
@@ -53,15 +53,15 @@ development:
 ```
 
 `database_tasks: false` matters: it stops `rails db:migrate` from running your
-application migrations against the archive database. RecordArchiver mirrors the
+application migrations against the archive database. ColdStorage mirrors the
 schema itself, and only for the tables it needs.
 
 ### 2. Create it and mirror the schema
 
 ```bash
-rails record_archiver:db:create     # CREATE DATABASE
-rails record_archiver:schema:sync   # copy the archivable models' tables
-rails record_archiver:status
+rails cold_storage:db:create     # CREATE DATABASE
+rails cold_storage:schema:sync   # copy the archivable models' tables
+rails cold_storage:status
 ```
 
 ### 3. Schedule it
@@ -71,12 +71,12 @@ its `every:` window has elapsed, so a daily schedule is enough:
 
 ```yaml
 # config/recurring.yml (solid_queue)
-record_archiver:
+cold_storage:
   schedule: "0 2 * * *"
-  class: "RecordArchiver::ArchiveAllJob"
+  class: "ColdStorage::ArchiveAllJob"
 ```
 
-Or from cron/rake: `rails record_archiver:archive_all`.
+Or from cron/rake: `rails cold_storage:archive_all`.
 
 ## The `archivable` options
 
@@ -175,9 +175,9 @@ Payroll.archive_now!            # archive immediately, ignoring every:
 payroll.archive!                # a single record (with its cascade)
 payroll.archived?
 
-RecordArchiver.archive(Payroll)                 # honours every:
-RecordArchiver.archive(Payroll, dry_run: true)  # report, move nothing
-RecordArchiver.archive_all
+ColdStorage.archive(Payroll)                 # honours every:
+ColdStorage.archive(Payroll, dry_run: true)  # report, move nothing
+ColdStorage.archive_all
 ```
 
 ## Reading archived data
@@ -201,7 +201,7 @@ invoice.invoice_lines                  # archived lines, from the archive DB
 invoice.taxes                          # has_many :through works too
 Invoice.archived.includes(:invoice_lines).find_each { |i| ... }
 
-line = RecordArchiver.archived_model(InvoiceLine).find(7)
+line = ColdStorage.archived_model(InvoiceLine).find(7)
 line.invoice                           # ... and back up
 line.source_model                      # => InvoiceLine
 ```
@@ -224,7 +224,7 @@ connections.
 ## Recovering
 
 ```ruby
-RecordArchiver.restore(Payroll, [1, 2, 3])
+ColdStorage.restore(Payroll, [1, 2, 3])
 Payroll.restore_archived([1, 2, 3])                       # same thing
 Payroll.restore_archived(Payroll.archived.where(year: 2019))
 Invoice.archived.find(42).restore!                        # from the row itself
@@ -250,28 +250,28 @@ is refused: restore the owner first, then its children — restoring a child
 whose parent is still archived would fail on the foreign key.
 
 ```
-rails record_archiver:restore[Invoice,"42 43"] WITH=all
-rails record_archiver:restore[Invoice,"42"]    WITH=invoice_lines,taxes
+rails cold_storage:restore[Invoice,"42 43"] WITH=all
+rails cold_storage:restore[Invoice,"42"]    WITH=invoice_lines,taxes
 ```
 
 ## Rake tasks
 
 ```
-rails record_archiver:status                 # models, rules, pending/archived counts, last run
-rails record_archiver:db:create              # create the archive database
-rails record_archiver:schema:sync            # create/update the mirrored tables
-rails record_archiver:schema:plan            # what sync would change
-rails record_archiver:schema:check           # exit 1 on drift (for CI)
-rails record_archiver:archive[Payroll]       # one model, now
-rails record_archiver:archive_all            # every model whose every: elapsed
-rails record_archiver:restore[Payroll,"1 2"] # move rows back (WITH=all)
+rails cold_storage:status                 # models, rules, pending/archived counts, last run
+rails cold_storage:db:create              # create the archive database
+rails cold_storage:schema:sync            # create/update the mirrored tables
+rails cold_storage:schema:plan            # what sync would change
+rails cold_storage:schema:check           # exit 1 on drift (for CI)
+rails cold_storage:archive[Payroll]       # one model, now
+rails cold_storage:archive_all            # every model whose every: elapsed
+rails cold_storage:restore[Payroll,"1 2"] # move rows back (WITH=all)
 ```
 
 `DRY_RUN=true`, `LIMIT=1000` and `FORCE=true` are honoured by the archive tasks.
 
 ## Schema mirroring
 
-`record_archiver:schema:sync` walks the archivable models (plus the tables they
+`cold_storage:schema:sync` walks the archivable models (plus the tables they
 cascade into) and, in the archive database:
 
 * creates missing tables, column by column, with the same SQL types —
@@ -295,7 +295,7 @@ and deliberately does **not**:
   they were archived with (`drop_removed_columns` if you disagree).
 
 It runs automatically after `db:migrate`, `db:rollback` and `db:schema:load`
-(`config.sync_schema_after_migrate`). In CI, `record_archiver:schema:check`
+(`config.sync_schema_after_migrate`). In CI, `cold_storage:schema:check`
 fails the build when a migration changed an archivable table and the archive
 database was not brought along.
 
@@ -325,18 +325,18 @@ hooks that notify, bill or cascade should not fire because a row aged out. Use
 
 ## Scheduling and `every:`
 
-Every successful run is recorded in `record_archiver_runs` **in the archive
+Every successful run is recorded in `cold_storage_runs` **in the archive
 database**, and `every:` is checked against it. This means the cadence survives
 restarts and deploys, and two workers running `archive_all` on the same day do
 not archive twice.
 
-`RecordArchiver::ArchiveAllJob` enqueues one `ArchiveModelJob` per model, so a
+`ColdStorage::ArchiveAllJob` enqueues one `ArchiveModelJob` per model, so a
 big table cannot starve the others.
 
 ## Configuration
 
 ```ruby
-RecordArchiver.configure do |config|
+ColdStorage.configure do |config|
   config.enabled                   = !Rails.env.test?
   config.archive_database          = :archive
   config.batch_size                = 1_000
@@ -363,7 +363,7 @@ end
 themselves as skipped and the `on_destroy` hook does nothing. That is usually
 what you want in the test environment, where there is no archive database and
 specs destroy records all the time. Schema tasks keep working either way, so
-`record_archiver:schema:check` still guards CI.
+`cold_storage:schema:check` still guards CI.
 
 ## Requirements and limits
 
@@ -387,7 +387,7 @@ bundle exec rspec
 ```
 
 It reads `DB_HOST`, `DB_PORT`, `POSTGRES_USER` and `POSTGRES_PASSWORD`, and
-creates `record_archiver_source_test` / `record_archiver_archive_test`.
+creates `cold_storage_source_test` / `cold_storage_archive_test`.
 
 To run it against the PostgreSQL of an app that already has a container, copy
 the gem in and borrow that app's bundle:

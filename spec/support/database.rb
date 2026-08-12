@@ -9,8 +9,8 @@ module Support
   # Two real PostgreSQL databases: enum types, arrays and jsonb are exactly the
   # things a schema mirror gets wrong, so the suite does not fake them.
   module Database
-    SOURCE  = ENV.fetch('RA_SOURCE_DB', 'record_archiver_source_test')
-    ARCHIVE = ENV.fetch('RA_ARCHIVE_DB', 'record_archiver_archive_test')
+    SOURCE  = ENV.fetch('CS_SOURCE_DB', 'cold_storage_source_test')
+    ARCHIVE = ENV.fetch('CS_ARCHIVE_DB', 'cold_storage_archive_test')
 
     module_function
 
@@ -38,8 +38,8 @@ module Support
       }
 
       ActiveRecord::Base.establish_connection(:primary)
-      RecordArchiver::ArchiveRecord.reset_connection!
-      RecordArchiver::ArchiveRecord.connect!
+      ColdStorage::ArchiveRecord.reset_connection!
+      ColdStorage::ArchiveRecord.connect!
     end
 
     def create_database(name)

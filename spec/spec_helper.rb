@@ -5,7 +5,7 @@ ENV['RAILS_ENV'] = 'test'
 $LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
 
 require 'active_record'
-require 'record_archiver'
+require 'cold_storage'
 require 'logger'
 
 require_relative 'support/database'
@@ -23,9 +23,9 @@ RSpec.configure do |config|
   end
 
   config.before do
-    RecordArchiver.reset_config!
-    RecordArchiver.config.logger = Logger.new(IO::NULL)
-    RecordArchiver::ArchiveModel.clear!
+    ColdStorage.reset_config!
+    ColdStorage.config.logger = Logger.new(IO::NULL)
+    ColdStorage::ArchiveModel.clear!
     Support::Schema.reset_data!
   end
 end
